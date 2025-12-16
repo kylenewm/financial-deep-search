@@ -1,0 +1,184 @@
+"""Graph state definitions and data structures for the Deep Research agent."""
+
+import operator
+from typing import Annotated, Optional, List
+
+from langchain_core.messages import MessageLikeRepresentation
+from langgraph.graph import MessagesState
+from pydantic import BaseModel, Field
+from typing_extensions import TypedDict
+
+
+###################
+# Verification Types
+###################
+
+class SourceRecord(TypedDict):
+    """Record of a source document for verification."""
+    url: str
+    title: str
+    content: str      # Raw content, up to 50k chars
+    query: str        # Search query that found this
+    timestamp: str    # ISO timestamp
+
+
+class ClaimVerification(TypedDict):
+    """Result of verifying a single claim."""
+    claim_id: str
+    claim_text: str
+    status: str       # SUPPORTED, PARTIALLY_SUPPORTED, UNSUPPORTED, UNCERTAIN
+    confidence: float
+    source_url: Optional[str]
+    source_title: Optional[str]
+    evidence_snippet: Optional[str]
+
+
+class VerificationSummary(TypedDict, total=False):
+    """Summary statistics for verification."""
+    total_claims: int
+    supported: int
+    partially_supported: int
+    unsupported: int
+    uncertain: int
+    overall_confidence: float
+    verified_at: str
+    warnings: List[str]
+    data_issues: List[str]  # Optional: logged data quality issues for debugging
+
+
+class VerificationResult(TypedDict):
+    """Complete verification output."""
+    summary: VerificationSummary
+    claims: List[ClaimVerification]
+
+
+###################
+# Structured Outputs
+###################
+class ConductResearch(BaseModel):
+    """Call this tool to conduct research on a specific topic."""
+    research_topic: str = Field(
+        description="The topic to research. Should be a single topic, and should be described in high detail (at least a paragraph).",
+    )
+
+class ResearchComplete(BaseModel):
+    """Call this tool to indicate that the research is complete."""
+
+class Summary(BaseModel):
+    """Research summary with key findings."""
+    
+    summary: str
+    key_excerpts: str
+
+class ClarifyWithUser(BaseModel):
+    """Model for user clarification requests."""
+    
+    need_clarification: bool = Field(
+        description="Whether the user needs to be asked a clarifying question.",
+    )
+    question: str = Field(
+        description="A question to ask the user to clarify the report scope",
+    )
+    verification: str = Field(
+        description="Verify message that we will start research after the user has provided the necessary information.",
+    )
+
+class ResearchQuestion(BaseModel):
+    """Research question and brief for guiding research."""
+    
+    research_brief: str = Field(
+        description="A research question that will be used to guide the research.",
+    )
+
+
+class BriefContext(BaseModel):
+    """Context gathered from preliminary Tavily search to inform brief generation.
+    
+    This is populated before brief generation to inject recent, relevant context
+    into the research brief, making it more specific and grounded in current events.
+    """
+    key_entities: List[str] = Field(
+        default_factory=list,
+        description="Companies, people, products, technologies discovered from search"
+    )
+    recent_events: List[str] = Field(
+        default_factory=list,
+        description="Recent news or developments from last 3-6 months"
+    )
+    key_metrics: List[str] = Field(
+        default_factory=list,
+        description="Numbers, percentages, dates, financial figures found"
+    )
+    context_summary: str = Field(
+        default="",
+        description="2-3 sentence summary of the most relevant context"
+    )
+    sources_used: List[str] = Field(
+        default_factory=list,
+        description="URLs of sources consulted for transparency"
+    )
+
+
+###################
+# State Definitions
+###################
+
+def override_reducer(current_value, new_value):
+    """Reducer function that allows overriding values in state."""
+    if isinstance(new_value, dict) and new_value.get("type") == "override":
+        return new_value.get("value", new_value)
+    else:
+        return operator.add(current_value, new_value)
+    
+class AgentInputState(MessagesState):
+    """InputState is only 'messages'."""
+
+class AgentState(MessagesState):
+    """Main agent state containing messages and research data."""
+    
+    supervisor_messages: Annotated[list[MessageLikeRepresentation], override_reducer]
+    research_brief: Optional[str]
+    raw_notes: Annotated[list[str], override_reducer] = []
+    notes: Annotated[list[str], override_reducer] = []
+    final_report: str
+    
+    # Council tracking fields
+    council_revision_count: int = 0
+    feedback_on_brief: Annotated[list[str], override_reducer] = []
+    
+    # Council 2: Findings fact-check tracking
+    findings_revision_count: int = 0
+    feedback_on_findings: Annotated[list[str], override_reducer] = []
+    
+    # Human Review Mode fields (Council as Advisor, Human as Authority)
+    council_brief_feedback: str = ""  # Council's feedback on the brief (advisory)
+    flagged_issues: Annotated[list[str], override_reducer] = []  # Fact-check flagged issues
+    human_approved_brief: Optional[str] = None  # Human-edited brief (if modified)
+    
+    # Claim Verification fields
+    source_store: Annotated[list[SourceRecord], operator.add] = []  # Accumulated sources for verification
+    verification_result: Optional[VerificationResult] = None  # Final verification output
+
+class SupervisorState(TypedDict):
+    """State for the supervisor that manages research tasks."""
+    
+    supervisor_messages: Annotated[list[MessageLikeRepresentation], override_reducer]
+    research_brief: str
+    notes: Annotated[list[str], override_reducer] = []
+    research_iterations: int = 0
+    raw_notes: Annotated[list[str], override_reducer] = []
+
+class ResearcherState(TypedDict):
+    """State for individual researchers conducting research."""
+    
+    researcher_messages: Annotated[list[MessageLikeRepresentation], operator.add]
+    tool_call_iterations: int = 0
+    research_topic: str
+    compressed_research: str
+    raw_notes: Annotated[list[str], override_reducer] = []
+
+class ResearcherOutputState(BaseModel):
+    """Output state from individual researchers."""
+    
+    compressed_research: str
+    raw_notes: Annotated[list[str], override_reducer] = []

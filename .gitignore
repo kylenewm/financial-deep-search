@@ -1,0 +1,100 @@
+
+*.egg-info
+*.pyc
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.env
+
+# IDE specific files
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Logs
+*.log
+logs/
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependencies
+node_modules/
+
+# LangGraph specific
+.langgraph/
+
+# Temporary files
+tmp/
+temp/
+
+.langgraph_api
+
+# Research runs and test outputs
+runs/
+*.json
+!pyproject.toml
+!langgraph.json
+!tests/**/*.jsonl
+
+# Temporary test scripts
+scripts/test_matching.py
+prompts/
+SCRATCHPAD.md
+.cursorrules
+runs/
+scripts/sanity_check_*.py
+scripts/test_matching.py
+.cache/
+
+# Archive / build prompts (development artifacts)
+docs/archive/
+
+# Sanity check scripts (all locations)
+**/sanity_check*.py
+
+# Legacy files (keep vibe_code.md - upstream project file)
+# src/legacy/files/vibe_code.md
+
+# GitHub AI workflows (keep - upstream project CI/CD)
+# .github/workflows/claude*.yml
