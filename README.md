@@ -79,13 +79,5 @@ Beyond just extracting facts, the system detects **hidden risks** by comparing t
 
 ---
 
-## 🛠️ Technical Stack
-- **LangChain / LangGraph**: Orchestration and agent workflows
-- **SEC EDGAR API**: Real-time financial data
-- **Pydantic**: Strict data validation
-- **Vector Search**: Semantic similarity for drift detection
-
----
-
 ### Based on Open Deep Research
 This project extends [LangChain's Open Deep Research](https://github.com/langchain-ai/open_deep_research) with financial verification layers.
